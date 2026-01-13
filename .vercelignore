@@ -1,0 +1,14 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.db
+*.sqlite
+*.sqlite3
+monitoring.db
+.venv
+venv/
+env/
+.env.local
+*.log

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>웹 키워드 모니터링</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #2c3e50; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="text"], input[type="number"], select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { background-color: #3498db; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background-color: #2980b9; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f8f9fa; }
+        .alert-section { margin-top: 40px; padding: 20px; background-color: #fff3cd; border: 1px solid #ffeeba; border-radius: 5px; }
+        .badge { display: inline-block; padding: 3px 7px; border-radius: 10px; font-size: 12px; color: #fff; }
+        .badge-success { background-color: #28a745; }
+        .badge-secondary { background-color: #6c757d; }
+        .delete-btn { background-color: #dc3545; font-size: 12px; padding: 5px 10px; }
+        .delete-btn:hover { background-color: #c82333; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🕸️ 웹사이트 키워드 모니터링</h1>
+    
+    <div style="background: #e9ecef; padding: 20px; border-radius: 5px;">
+        <h2>새 모니터링 작업 추가</h2>
+        <form action="/tasks/add" method="post">
+            <div class="form-group">
+                <label for="url">타겟 웹사이트 URL (ex: https://search.naver.com/...)</label>
+                <input type="text" id="url" name="url" placeholder="https://..." required>
+            </div>
+            <div class="form-group">
+                <label for="keyword">타겟 키워드 (ex: 서울귀감이비인후과)</label>
+                <input type="text" id="keyword" name="keyword" placeholder="찾을 단어" required>
+            </div>
+            <div class="form-group">
+                <label for="interval_minutes">모니터링 주기 (분)</label>
+                <input type="number" id="interval_minutes" name="interval_minutes" value="10" min="1" required>
+            </div>
+            <button type="submit">모니터링 시작</button>
+        </form>
+    </div>
+
+    <h2>📋 등록된 작업 목록</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>URL</th>
+                <th>키워드</th>
+                <th>주기(분)</th>
+                <th>마지막 확인</th>
+                <th>관리</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for task in tasks %}
+            <tr>
+                <td>{{ task.id }}</td>
+                <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    <a href="{{ task.url }}" target="_blank">{{ task.url }}</a>
+                </td>
+                <td><strong>{{ task.keyword }}</strong></td>
+                <td>{{ task.interval_minutes }}분</td>
+                <td>{{ task.last_checked.strftime('%Y-%m-%d %H:%M:%S') if task.last_checked else '아직 안함' }}</td>
+                <td>
+                    <form action="/tasks/{{ task.id }}/delete" method="post" style="display:inline;">
+                        <button type="submit" class="delete-btn">삭제</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="alert-section">
+        <h2>🔔 최근 발견 알림</h2>
+        {% if alerts %}
+        <ul>
+            {% for alert in alerts %}
+            <li>
+                <strong>{{ alert.found_at.strftime('%Y-%m-%d %H:%M:%S') }}</strong> - 
+                작업 #{{ alert.task_id }} ({{ alert.task.keyword }}) 에서 키워드 발견
+                <a href="{{ alert.task.url }}" target="_blank" style="margin-left: 10px; font-weight: bold; color: #007bff;">[바로가기]</a>
+                <br>
+                <code>{{ alert.context }}</code>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>아직 발견된 알림이 없습니다.</p>
+        {% endif %}
+    </div>
+</div>
+
+</body>
+</html>
