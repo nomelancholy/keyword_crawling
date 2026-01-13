@@ -5,19 +5,19 @@
 ## 주요 기능
 
 - 🔍 **키워드 모니터링**: 지정한 웹사이트에서 특정 키워드를 주기적으로 검색
-- ⏰ **스케줄링**: APScheduler를 사용한 자동 주기적 체크
+- ⏰ **스케줄링**: GitHub Actions를 사용한 자동 주기적 체크 (무료 플랜 지원)
 - 📊 **작업 관리**: 웹 인터페이스를 통한 모니터링 작업 추가/삭제
 - 🔔 **알림 기록**: 키워드 발견 시 컨텍스트와 함께 알림 저장
-- 💾 **데이터베이스**: SQLite를 사용한 작업 및 알림 데이터 저장
+- 💾 **데이터베이스**: PostgreSQL 또는 SQLite 사용 (환경에 따라 자동 전환)
 
 ## 기술 스택
 
 - **FastAPI**: 웹 프레임워크
 - **SQLAlchemy**: ORM 및 데이터베이스 관리
 - **BeautifulSoup4**: 웹 스크래핑
-- **APScheduler**: 백그라운드 작업 스케줄링
+- **GitHub Actions**: 크롤링 작업 스케줄링 (무료 플랜 지원)
 - **Jinja2**: 템플릿 엔진
-- **SQLite**: 데이터베이스
+- **PostgreSQL/SQLite**: 데이터베이스 (환경에 따라 자동 전환)
 
 ## 설치 방법
 
@@ -67,13 +67,17 @@ http://localhost:8000
 
 ```
 keyword_crawling/
-├── main.py              # FastAPI 애플리케이션 메인 파일
-├── database.py          # 데이터베이스 설정
-├── models.py            # SQLAlchemy 모델 (Task, Alert)
-├── requirements.txt     # Python 패키지 의존성
+├── main.py                      # FastAPI 애플리케이션 메인 파일
+├── cron_job.py                  # GitHub Actions에서 실행할 크롤링 스크립트
+├── database.py                  # 데이터베이스 설정
+├── models.py                    # SQLAlchemy 모델 (Task, Alert)
+├── requirements.txt             # Python 패키지 의존성
 ├── templates/
-│   └── index.html      # 웹 인터페이스 템플릿
-└── monitoring.db        # SQLite 데이터베이스 (자동 생성)
+│   └── index.html              # 웹 인터페이스 템플릿
+├── .github/
+│   └── workflows/
+│       └── cron.yml            # GitHub Actions 워크플로우
+└── monitoring.db                # SQLite 데이터베이스 (로컬 개발용)
 ```
 
 ## 데이터베이스 모델
@@ -101,42 +105,67 @@ keyword_crawling/
 - `POST /tasks/add`: 새 모니터링 작업 추가
 - `POST /tasks/{task_id}/delete`: 작업 삭제
 
-## Vercel 배포
+## GitHub Actions 설정 (권장)
 
-이 프로젝트는 Vercel에 배포할 수 있습니다. 자세한 배포 가이드는 [VERCEL_DEPLOY.md](./VERCEL_DEPLOY.md)를 참조하세요.
+크롤링 작업은 GitHub Actions에서 실행됩니다. 무료 플랜에서도 사용 가능합니다.
 
-### 빠른 배포 가이드
+### 빠른 설정 가이드
 
-1. **Vercel Postgres 설정**
+1. **GitHub Secrets 설정**
 
-   - Vercel 대시보드에서 Storage > Postgres 추가
-   - `DATABASE_URL` 환경 변수가 자동 설정됩니다
+   - 저장소의 **Settings > Secrets and variables > Actions**로 이동
+   - `DATABASE_URL` Secret 추가 (PostgreSQL 연결 문자열)
+   - 예: `postgresql://user:password@host:port/database`
 
-2. **Git 저장소에 푸시**
+2. **데이터베이스 생성** (무료 옵션)
 
-   ```bash
-   git add .
-   git commit -m "Prepare for Vercel"
-   git push
-   ```
+   - [Supabase](https://supabase.com) - 무료 플랜 제공
+   - [Neon](https://neon.tech) - 무료 플랜 제공
+   - [Railway](https://railway.app) - 무료 크레딧 제공
+   - [Render](https://render.com) - 무료 플랜 제공
 
-3. **Vercel에 배포**
-   - [vercel.com](https://vercel.com)에서 프로젝트 import
-   - 자동으로 배포됩니다
+3. **자동 실행**
+   - GitHub에 코드를 푸시하면 자동으로 워크플로우가 활성화됩니다
+   - 기본 설정: 10분마다 자동 실행
+   - 수동 실행: **Actions** 탭에서 "Run workflow" 클릭
 
-### 주요 변경사항 (Vercel용)
+### Cron 스케줄 수정
 
-- **APScheduler 제거**: 서버리스 환경 대응을 위해 Vercel Cron Jobs 사용
-- **PostgreSQL 지원**: SQLite 대신 PostgreSQL 사용 (환경 변수로 자동 전환)
-- **Cron 엔드포인트**: `/api/cron/check-tasks` (10분마다 자동 실행)
+`.github/workflows/cron.yml` 파일에서 실행 주기를 변경할 수 있습니다:
+
+```yaml
+schedule:
+  - cron: "*/10 * * * *" # 10분마다
+```
+
+**참고**: GitHub Actions 무료 플랜은 월 2,000분 제공
+
+- 10분마다: 월 약 4,320분 (무료 플랜 초과)
+- 30분마다: 월 약 1,440분 (무료 플랜 내) ✅
+- 1시간마다: 월 약 720분 (무료 플랜 내) ✅
+
+자세한 설정 가이드는 [GITHUB_ACTIONS_SETUP.md](./GITHUB_ACTIONS_SETUP.md)를 참조하세요.
+
+## 웹 서버 배포 (선택사항)
+
+크롤링은 GitHub Actions에서 실행되지만, 웹 인터페이스를 사용하려면 웹 서버를 별도로 배포해야 합니다.
+
+### 추천 플랫폼
+
+- **Railway** (railway.app) - 무료 크레딧 제공
+- **Render** (render.com) - 무료 플랜 제공
+- **Fly.io** (fly.io) - 무료 플랜 제공
+
+웹 서버와 GitHub Actions가 같은 데이터베이스를 사용해야 합니다.
 
 ## 주의사항
 
 - 웹사이트의 robots.txt 및 이용약관을 확인하세요
 - 과도한 요청은 IP 차단을 유발할 수 있습니다
-- 타임아웃은 10초로 설정되어 있습니다
-- **로컬 환경**: APScheduler 사용 (SQLite)
-- **Vercel 환경**: Vercel Cron Jobs 사용 (PostgreSQL)
+- 타임아웃은 30초로 설정되어 있습니다 (GitHub Actions)
+- **로컬 환경**: SQLite 사용 (환경 변수 없을 때)
+- **GitHub Actions**: PostgreSQL 사용 (DATABASE_URL Secret 필요)
+- GitHub Actions 무료 플랜은 월 2,000분 실행 시간 제공
 
 ## 라이선스
 

@@ -16,8 +16,9 @@ models.Base.metadata.create_all(bind=engine)
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
-# Vercel 환경 확인
+# 환경 확인
 IS_VERCEL = os.getenv("VERCEL") == "1"
+IS_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -79,12 +80,12 @@ def perform_check(task_id: int):
 @app.get("/api/cron/check-tasks")
 def cron_check_tasks():
     """
-    Vercel Cron Jobs에서 호출하는 엔드포인트
+    GitHub Actions 또는 외부에서 호출할 수 있는 엔드포인트
     모든 활성 작업을 체크합니다.
     """
-    # Vercel Cron Secret 확인 (보안)
-    cron_secret = os.getenv("CRON_SECRET")
-    # 실제 배포 시에는 Authorization 헤더로 보안 강화 권장
+    # 보안: API 키 확인 (선택사항)
+    api_key = os.getenv("CRON_API_KEY")
+    # 필요시 Authorization 헤더로 보안 강화
     
     db = SessionLocal()
     try:
@@ -93,6 +94,7 @@ def cron_check_tasks():
         tasks = db.query(models.Task).filter(models.Task.is_active == True).all()
         
         checked_count = 0
+        found_count = 0
         for task in tasks:
             # 마지막 체크 시간 확인
             should_check = False
@@ -104,13 +106,16 @@ def cron_check_tasks():
                     should_check = True
             
             if should_check:
+                # perform_check는 키워드를 찾았는지 반환하지 않으므로
+                # 여기서는 단순히 체크만 수행
                 perform_check(task.id)
                 checked_count += 1
         
         return JSONResponse({
             "status": "success",
             "checked_tasks": checked_count,
-            "total_tasks": len(tasks)
+            "total_tasks": len(tasks),
+            "timestamp": datetime.utcnow().isoformat()
         })
     finally:
         db.close()
@@ -142,13 +147,9 @@ def add_task(
     db.commit()
     db.refresh(new_task)
     
-    # Vercel 환경에서는 스케줄러가 없으므로 즉시 한 번 체크
-    if IS_VERCEL:
-        # 백그라운드에서 즉시 체크
-        perform_check(new_task.id)
-    else:
-        # 로컬 환경에서는 기존 스케줄러 사용 (선택사항)
-        pass
+    # 새 작업 추가 시 즉시 한 번 체크 (선택사항)
+    # GitHub Actions가 주기적으로 체크하므로 즉시 체크는 선택사항
+    # perform_check(new_task.id)
     
     return RedirectResponse(url="/", status_code=303)
 

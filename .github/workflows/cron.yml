@@ -1,0 +1,36 @@
+name: Keyword Monitoring Cron Job
+
+on:
+  schedule:
+    # 10분마다 실행 (cron 형식: 분 시 일 월 요일)
+    - cron: '*/10 * * * *'
+  workflow_dispatch:  # 수동 실행 가능
+
+jobs:
+  check-keywords:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run keyword monitoring
+      env:
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      run: |
+        python cron_job.py
+        
+    - name: Summary
+      if: always()
+      run: |
+        echo "Cron job completed at $(date)"
