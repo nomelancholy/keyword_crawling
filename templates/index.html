@@ -69,7 +69,7 @@
                 </td>
                 <td><strong>{{ task.keyword }}</strong></td>
                 <td>{{ task.interval_minutes }}분</td>
-                <td>{{ task.last_checked.strftime('%Y-%m-%d %H:%M:%S') if task.last_checked else '아직 안함' }}</td>
+                <td>{{ format_kst(task.last_checked) }}</td>
                 <td>
                     <form action="/tasks/{{ task.id }}/delete" method="post" style="display:inline;">
                         <button type="submit" class="delete-btn">삭제</button>
@@ -86,7 +86,7 @@
         <ul>
             {% for alert in alerts %}
             <li>
-                <strong>{{ alert.found_at.strftime('%Y-%m-%d %H:%M:%S') }}</strong> - 
+                <strong>{{ format_kst(alert.found_at) }}</strong> - 
                 작업 #{{ alert.task_id }} ({{ alert.task.keyword }}) 에서 키워드 발견
                 <a href="{{ alert.task.url }}" target="_blank" style="margin-left: 10px; font-weight: bold; color: #007bff;">[바로가기]</a>
                 <br>
