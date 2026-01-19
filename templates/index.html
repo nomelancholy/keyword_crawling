@@ -86,11 +86,12 @@
         <ul>
             {% for alert in alerts %}
             <li>
-                <strong>{{ format_kst(alert.found_at) }}</strong> - 
+                <strong>{{ format_kst(alert.found_at) }}</strong> -
                 작업 #{{ alert.task_id }} ({{ alert.task.keyword }}) 에서 키워드 발견
-                <a href="{{ alert.task.url }}" target="_blank" style="margin-left: 10px; font-weight: bold; color: #007bff;">[바로가기]</a>
+                {% set alert_link = extract_alert_link(alert.context) %}
+                <a href="{{ alert_link if alert_link else alert.task.url }}" target="_blank" style="margin-left: 10px; font-weight: bold; color: #007bff;">[바로가기]</a>
                 <br>
-                <code>{{ alert.context }}</code>
+                <code>{{ strip_alert_link(alert.context) }}</code>
             </li>
             {% endfor %}
         </ul>

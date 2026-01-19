@@ -49,6 +49,22 @@ def format_kst(dt: Optional[datetime]) -> str:
     return dt.astimezone(KST).strftime("%Y-%m-%d %H:%M:%S")
 
 
+def extract_alert_link(context: Optional[str]) -> Optional[str]:
+    if not context:
+        return None
+    if context.startswith("[") and "]" in context:
+        return context.split("]", 1)[0][1:]
+    return None
+
+
+def strip_alert_link(context: Optional[str]) -> str:
+    if not context:
+        return ""
+    if context.startswith("[") and "]" in context:
+        return context.split("]", 1)[1].lstrip()
+    return context
+
+
 def fetch_page_html(url: str) -> str:
     headers = {
         "User-Agent": (
@@ -245,9 +261,13 @@ def cron_check_tasks():
 @app.get("/", response_class=HTMLResponse)
 def read_root(request: Request, db: Session = Depends(get_db)):
     tasks = db.query(models.Task).order_by(models.Task.created_at.desc()).all()
-    # Fetch alerts for display (simplified: just last 10 alerts globally or per task)
+    # Fetch alerts for display (last 7 days)
+    cutoff = datetime.utcnow() - timedelta(days=7)
     alerts = (
-        db.query(models.Alert).order_by(models.Alert.found_at.desc()).limit(20).all()
+        db.query(models.Alert)
+        .filter(models.Alert.found_at >= cutoff)
+        .order_by(models.Alert.found_at.desc())
+        .all()
     )
     return templates.TemplateResponse(
         "index.html",
@@ -256,6 +276,8 @@ def read_root(request: Request, db: Session = Depends(get_db)):
             "tasks": tasks,
             "alerts": alerts,
             "format_kst": format_kst,
+            "extract_alert_link": extract_alert_link,
+            "strip_alert_link": strip_alert_link,
         },
     )
 
