@@ -5,6 +5,7 @@ GitHub Actions에서 실행할 크롤링 작업 스크립트
 import os
 import sys
 import logging
+import re
 import requests
 import trafilatura
 from bs4 import BeautifulSoup
@@ -29,6 +30,8 @@ logger = logging.getLogger(__name__)
 MAX_DETAIL_LINKS = int(os.getenv("MAX_DETAIL_LINKS", "30"))
 MAX_PAGES = int(os.getenv("MAX_PAGES", "5"))
 PAGE_PARAM = os.getenv("PAGE_PARAM", "page")
+ALLOW_PATH_REGEX = os.getenv("ALLOW_PATH_REGEX", "")
+DENY_PATH_REGEX = os.getenv("DENY_PATH_REGEX", "")
 
 
 def fetch_page_html(url: str) -> str:
@@ -87,6 +90,22 @@ def build_paged_url(url: str, page: int) -> str:
     )
 
 
+def normalize_detail_url(url: str) -> str:
+    parts = urlsplit(url)
+    query_pairs = [(k, v) for k, v in parse_qsl(parts.query) if k != "comment_srl"]
+    new_query = urlencode(query_pairs)
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, new_query, ""))
+
+
+def should_follow_link(url: str) -> bool:
+    path = urlsplit(url).path
+    if DENY_PATH_REGEX and re.search(DENY_PATH_REGEX, path):
+        return False
+    if ALLOW_PATH_REGEX:
+        return re.search(ALLOW_PATH_REGEX, path) is not None
+    return True
+
+
 def fetch_page_text(url: str):
     """
     Try article extraction first; fallback to plain text from HTML.
@@ -140,17 +159,21 @@ def perform_check(task_id: int):
                 same_domain_links = [
                     link for link in links if is_same_domain(task.url, link)
                 ]
+                normalized_links: list[str] = []
+                for link in same_domain_links:
+                    normalized = normalize_detail_url(link)
+                    if not should_follow_link(normalized):
+                        continue
+                    normalized_links.append(normalized)
                 existing_links_page = {
                     row[0]
                     for row in db.query(models.TaskLink.url)
                     .filter(models.TaskLink.task_id == task.id)
-                    .filter(models.TaskLink.url.in_(same_domain_links))
+                    .filter(models.TaskLink.url.in_(normalized_links))
                     .all()
                 }
                 new_links_page = [
-                    link
-                    for link in same_domain_links
-                    if link not in existing_links_page
+                    link for link in normalized_links if link not in existing_links_page
                 ]
                 if not new_links_page:
                     # No new links on this page -> older pages are likely already processed.
