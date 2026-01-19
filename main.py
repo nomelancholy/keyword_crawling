@@ -9,7 +9,14 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from urllib.parse import urljoin, urlparse
+from urllib.parse import (
+    urljoin,
+    urlparse,
+    urlsplit,
+    urlunsplit,
+    parse_qsl,
+    urlencode,
+)
 from zoneinfo import ZoneInfo
 import models
 from database import SessionLocal, engine
@@ -29,6 +36,8 @@ logger = logging.getLogger(__name__)
 
 KST = ZoneInfo("Asia/Seoul")
 MAX_DETAIL_LINKS = int(os.getenv("MAX_DETAIL_LINKS", "30"))
+MAX_PAGES = int(os.getenv("MAX_PAGES", "5"))
+PAGE_PARAM = os.getenv("PAGE_PARAM", "page")
 
 
 # Dependency
@@ -105,6 +114,16 @@ def is_same_domain(base_url: str, target_url: str) -> bool:
         return False
 
 
+def build_paged_url(url: str, page: int) -> str:
+    parts = urlsplit(url)
+    query = dict(parse_qsl(parts.query))
+    query[PAGE_PARAM] = str(page)
+    new_query = urlencode(query)
+    return urlunsplit(
+        (parts.scheme, parts.netloc, parts.path, new_query, parts.fragment)
+    )
+
+
 def fetch_page_text(url: str) -> Optional[str]:
     """
     Try article extraction first; fallback to plain text from HTML.
@@ -142,12 +161,40 @@ def perform_check(task_id: int):
         logger.info(f"Checking Task {task_id}: {task.url} for '{task.keyword}'")
 
         try:
-            list_html = fetch_page_html(task.url)
-            links = extract_links(task.url, list_html)
-            same_domain_links = [
-                link for link in links if is_same_domain(task.url, link)
-            ]
-            candidate_links = same_domain_links[:MAX_DETAIL_LINKS]
+            candidate_links: list[str] = []
+            seen_links: set[str] = set()
+            for page in range(1, MAX_PAGES + 1):
+                page_url = task.url if page == 1 else build_paged_url(task.url, page)
+                list_html = fetch_page_html(page_url)
+                links = extract_links(page_url, list_html)
+                same_domain_links = [
+                    link for link in links if is_same_domain(task.url, link)
+                ]
+                existing_links_page = {
+                    row[0]
+                    for row in db.query(models.TaskLink.url)
+                    .filter(models.TaskLink.task_id == task.id)
+                    .filter(models.TaskLink.url.in_(same_domain_links))
+                    .all()
+                }
+                new_links_page = [
+                    link
+                    for link in same_domain_links
+                    if link not in existing_links_page
+                ]
+                if not new_links_page:
+                    # No new links on this page -> older pages are likely already processed.
+                    break
+
+                for link in new_links_page:
+                    if link in seen_links:
+                        continue
+                    seen_links.add(link)
+                    candidate_links.append(link)
+                    if len(candidate_links) >= MAX_DETAIL_LINKS:
+                        break
+                if len(candidate_links) >= MAX_DETAIL_LINKS:
+                    break
 
             if not candidate_links:
                 # Fallback: treat the page itself as an article
