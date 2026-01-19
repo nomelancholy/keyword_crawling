@@ -37,7 +37,7 @@ DATABASE_URL=postgresql://user:password@host:port/database
 
 ```yaml
 schedule:
-  - cron: '*/10 * * * *'  # 10분마다
+  - cron: '*/30 * * * *'  # 30분마다
 ```
 
 다른 스케줄 예시:
@@ -83,7 +83,6 @@ schedule:
 
 - 웹 서버와 GitHub Actions가 같은 데이터베이스를 사용해야 합니다
 - `DATABASE_URL` 환경 변수를 동일하게 설정하세요
-- Vercel 관련 파일(`vercel.json`, `api/index.py`)은 제거해도 됩니다
 
 ## 문제 해결
 

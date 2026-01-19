@@ -126,7 +126,7 @@ keyword_crawling/
 
 3. **자동 실행**
    - GitHub에 코드를 푸시하면 자동으로 워크플로우가 활성화됩니다
-   - 기본 설정: 10분마다 자동 실행
+   - 기본 설정: 30분마다 자동 실행
    - 수동 실행: **Actions** 탭에서 "Run workflow" 클릭
 
 ### Cron 스케줄 수정
@@ -135,7 +135,7 @@ keyword_crawling/
 
 ```yaml
 schedule:
-  - cron: "*/10 * * * *" # 10분마다
+  - cron: "*/30 * * * *" # 30분마다
 ```
 
 **참고**: GitHub Actions 무료 플랜은 월 2,000분 제공
@@ -155,6 +155,8 @@ schedule:
 - **Railway** (railway.app) - 무료 크레딧 제공
 - **Render** (render.com) - 무료 플랜 제공
 - **Fly.io** (fly.io) - 무료 플랜 제공
+
+Render 배포 가이드: [docs/RENDER_DEPLOY.md](./docs/RENDER_DEPLOY.md)
 
 웹 서버와 GitHub Actions가 같은 데이터베이스를 사용해야 합니다.
 
