@@ -2,7 +2,7 @@ fastapi
 uvicorn
 requests
 beautifulsoup4
-apscheduler
 jinja2
 sqlalchemy
 python-multipart
+psycopg2-binary
