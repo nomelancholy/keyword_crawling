@@ -40,7 +40,13 @@ def fetch_page_html(url: str) -> str:
         )
     }
     response = requests.get(url, headers=headers, timeout=30)
-    response.raise_for_status()
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as exc:
+        if response.status_code == 403:
+            logger.warning(f"403 Forbidden for list page: {url}")
+            return ""
+        raise exc
     return response.text
 
 
@@ -99,7 +105,13 @@ def fetch_page_text(url: str):
         )
     }
     response = requests.get(url, headers=headers, timeout=30)
-    response.raise_for_status()
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as exc:
+        if response.status_code == 403:
+            logger.warning(f"403 Forbidden for detail page: {url}")
+            return None
+        raise exc
     soup = BeautifulSoup(response.text, "html.parser")
     text_content = soup.get_text()
     return text_content if text_content else None
